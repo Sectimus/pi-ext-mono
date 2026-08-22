@@ -1,0 +1,7 @@
+{
+  "name": "pi-ext-mono",
+  "private": true,
+  "pi": {
+    "extensions": ["./pi-extension-manager/index.ts"]
+  }
+}

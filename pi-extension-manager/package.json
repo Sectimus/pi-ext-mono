@@ -7,7 +7,7 @@
   "author": "Amelia Magee <amelia.magee@arbor-education.com>",
   "type": "module",
   "pi": {
-    "extensions": ["./src/index.ts"]
+    "extensions": ["./index.ts"]
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
