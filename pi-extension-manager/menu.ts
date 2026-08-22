@@ -21,7 +21,11 @@ import {
 	type Focusable,
 	type TUI,
 } from "@earendil-works/pi-tui";
-import type { ExtensionAPI, ExtensionCommandContext, Theme } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionAPI,
+	ExtensionCommandContext,
+	Theme,
+} from "@earendil-works/pi-coding-agent";
 import {
 	checkVersion,
 	deleteEntry,
@@ -69,13 +73,19 @@ function versionSummary(entry: ExtensionEntry): string {
 	return entry.localVersion ? `${entry.localVersion}` : "";
 }
 
+function updatedSummary(entry: ExtensionEntry): string {
+	return entry.lastUpdated ? `updated ${entry.lastUpdated}` : "";
+}
+
 class ExtensionManagerComponent extends Container implements Focusable {
 	private view: "list" | "actions" = "list";
 	private search = new Input();
 	private filtered: ExtensionEntry[] = [];
 	private selected = 0;
 	private actionIndex = 0;
-	private status: { text: string; tone: "info" | "success" | "error" } | undefined;
+	private status:
+		| { text: string; tone: "info" | "success" | "error" }
+		| undefined;
 	private busy = false;
 	/** Pending destructive confirmation, kept inline so the menu never closes. */
 	private confirming: { entry: ExtensionEntry; message: string } | undefined;
@@ -115,7 +125,9 @@ class ExtensionManagerComponent extends Container implements Focusable {
 	 * must not trigger a reload prompt.
 	 */
 	private hasChanges(): boolean {
-		return this.contentChanged || effectiveSnapshot(this.registry) !== this.baseline;
+		return (
+			this.contentChanged || effectiveSnapshot(this.registry) !== this.baseline
+		);
 	}
 
 	// -- data ---------------------------------------------------------------
@@ -130,7 +142,10 @@ class ExtensionManagerComponent extends Container implements Focusable {
 					(entry) => `${entry.displayName} ${entry.source ?? ""} ${entry.scope}`,
 				)
 			: entries;
-		this.selected = Math.min(this.selected, Math.max(0, this.filtered.length - 1));
+		this.selected = Math.min(
+			this.selected,
+			Math.max(0, this.filtered.length - 1),
+		);
 	}
 
 	private get current(): ExtensionEntry | undefined {
@@ -139,7 +154,9 @@ class ExtensionManagerComponent extends Container implements Focusable {
 
 	private actionsFor(entry: ExtensionEntry): ActionItem[] {
 		const downloaded = isDownloaded(entry);
-		const downloadedOnly = downloaded ? undefined : "only for downloaded (npm/git) extensions";
+		const downloadedOnly = downloaded
+			? undefined
+			: "only for downloaded (npm/git) extensions";
 		const offline = isOffline() ? "unavailable in offline mode" : undefined;
 		return [
 			{
@@ -147,7 +164,10 @@ class ExtensionManagerComponent extends Container implements Focusable {
 				label: entry.enabled ? "Disable" : "Enable",
 				description: `${entry.enabled ? "Stop" : "Start"} loading this extension (${entry.scope} settings)`,
 				// Disabling the manager from its own menu would remove the only way back in.
-				disabled: entry.enabled && isSelf(entry) ? "the extension manager cannot disable itself" : undefined,
+				disabled:
+					entry.enabled && isSelf(entry)
+						? "the extension manager cannot disable itself"
+						: undefined,
 			},
 			{
 				id: "version",
@@ -164,7 +184,9 @@ class ExtensionManagerComponent extends Container implements Focusable {
 				disabled:
 					downloadedOnly ??
 					offline ??
-					(isPinnedNpm(entry) ? `pinned to ${entry.pinnedRef} in settings` : undefined),
+					(isPinnedNpm(entry)
+						? `pinned to ${entry.pinnedRef} in settings`
+						: undefined),
 			},
 			{
 				id: "delete",
@@ -174,7 +196,10 @@ class ExtensionManagerComponent extends Container implements Focusable {
 		];
 	}
 
-	private setStatus(text: string, tone: "info" | "success" | "error" = "info"): void {
+	private setStatus(
+		text: string,
+		tone: "info" | "success" | "error" = "info",
+	): void {
 		this.status = { text, tone };
 		this.tui.requestRender();
 	}
@@ -204,7 +229,10 @@ class ExtensionManagerComponent extends Container implements Focusable {
 			if (action === "toggle") {
 				const next = !entry.enabled;
 				await setEnabled(this.registry, entry, next);
-				this.setStatus(`${entry.displayName} ${next ? "enabled" : "disabled"}`, "success");
+				this.setStatus(
+					`${entry.displayName} ${next ? "enabled" : "disabled"}`,
+					"success",
+				);
 			} else if (action === "version") {
 				entry.versionState = "checking";
 				this.setStatus(`Checking ${entry.displayName}…`);
@@ -221,7 +249,8 @@ class ExtensionManagerComponent extends Container implements Focusable {
 					);
 				} catch (error) {
 					entry.versionState = "error";
-					entry.versionError = error instanceof Error ? error.message : String(error);
+					entry.versionError =
+						error instanceof Error ? error.message : String(error);
 					this.setStatus(`Version check failed: ${entry.versionError}`, "error");
 				}
 			} else if (action === "update") {
@@ -232,6 +261,7 @@ class ExtensionManagerComponent extends Container implements Focusable {
 				entry.versionState = "idle";
 				entry.remoteVersion = undefined;
 				entry.localVersion = readLocalVersion(entry);
+				entry.lastUpdated = new Date().toISOString().slice(0, 10);
 				const changed = entry.localVersion && entry.localVersion !== before;
 				this.setStatus(
 					changed
@@ -241,7 +271,10 @@ class ExtensionManagerComponent extends Container implements Focusable {
 				);
 			}
 		} catch (error) {
-			this.setStatus(error instanceof Error ? error.message : String(error), "error");
+			this.setStatus(
+				error instanceof Error ? error.message : String(error),
+				"error",
+			);
 		} finally {
 			this.busy = false;
 			this.tui.requestRender();
@@ -266,7 +299,10 @@ class ExtensionManagerComponent extends Container implements Focusable {
 			this.search.focused = this._focused;
 			this.setStatus(`${message} — /reload to apply`, "success");
 		} catch (error) {
-			this.setStatus(error instanceof Error ? error.message : String(error), "error");
+			this.setStatus(
+				error instanceof Error ? error.message : String(error),
+				"error",
+			);
 		} finally {
 			this.busy = false;
 			this.tui.requestRender();
@@ -283,7 +319,11 @@ class ExtensionManagerComponent extends Container implements Focusable {
 			// "Delete" must not destroy anything. Explicit y is required.
 			if (data === "y" || data === "Y") {
 				void this.confirmDelete();
-			} else if (data === "n" || data === "N" || kb.matches(data, "tui.select.cancel")) {
+			} else if (
+				data === "n" ||
+				data === "N" ||
+				kb.matches(data, "tui.select.cancel")
+			) {
 				this.confirming = undefined;
 				this.setStatus("Delete cancelled");
 			}
@@ -304,7 +344,10 @@ class ExtensionManagerComponent extends Container implements Focusable {
 		this.tui.requestRender();
 	}
 
-	private handleListInput(data: string, kb: ReturnType<typeof getKeybindings>): void {
+	private handleListInput(
+		data: string,
+		kb: ReturnType<typeof getKeybindings>,
+	): void {
 		if (kb.matches(data, "tui.select.up")) {
 			this.selected = Math.max(0, this.selected - 1);
 			return;
@@ -336,7 +379,10 @@ class ExtensionManagerComponent extends Container implements Focusable {
 		this.applyFilter();
 	}
 
-	private handleActionsInput(data: string, kb: ReturnType<typeof getKeybindings>): void {
+	private handleActionsInput(
+		data: string,
+		kb: ReturnType<typeof getKeybindings>,
+	): void {
 		const entry = this.current;
 		if (!entry) {
 			this.view = "list";
@@ -386,19 +432,34 @@ class ExtensionManagerComponent extends Container implements Focusable {
 		lines.push(truncateToWidth(`${left}${" ".repeat(gap)}${hint}`, width, ""));
 
 		if (this.status) {
-			const tone = this.status.tone === "success" ? "success" : this.status.tone === "error" ? "error" : "muted";
+			const tone =
+				this.status.tone === "success"
+					? "success"
+					: this.status.tone === "error"
+						? "error"
+						: "muted";
 			lines.push(truncateToWidth(theme.fg(tone, this.status.text), width, "…"));
 		}
 		lines.push("");
 
 		if (this.confirming) {
-			lines.push(truncateToWidth(theme.fg("warning", theme.bold(this.confirming.message)), width, "…"));
+			lines.push(
+				truncateToWidth(
+					theme.fg("warning", theme.bold(this.confirming.message)),
+					width,
+					"…",
+				),
+			);
 			lines.push(theme.fg("dim", "y confirm · n cancel"));
 			lines.push(theme.fg("border", border));
 			return lines;
 		}
 
-		lines.push(...(this.view === "list" ? this.renderList(width) : this.renderActions(width)));
+		lines.push(
+			...(this.view === "list"
+				? this.renderList(width)
+				: this.renderActions(width)),
+		);
 		lines.push(theme.fg("border", border));
 		return lines;
 	}
@@ -419,7 +480,10 @@ class ExtensionManagerComponent extends Container implements Focusable {
 		);
 		const start = Math.max(
 			0,
-			Math.min(this.selected - Math.floor(maxVisible / 2), this.filtered.length - maxVisible),
+			Math.min(
+				this.selected - Math.floor(maxVisible / 2),
+				this.filtered.length - maxVisible,
+			),
 		);
 		const end = Math.min(start + maxVisible, this.filtered.length);
 
@@ -427,17 +491,30 @@ class ExtensionManagerComponent extends Container implements Focusable {
 			const entry = this.filtered[i]!;
 			const isSelected = i === this.selected;
 			const cursor = isSelected ? theme.fg("accent", "> ") : "  ";
-			const checkbox = entry.enabled ? theme.fg("success", "[x]") : theme.fg("dim", "[ ]");
-			const name = isSelected ? theme.fg("accent", theme.bold(entry.displayName)) : entry.displayName;
-			const meta: string[] = [KIND_LABELS[entry.kind], entry.scope];
+			const checkbox = entry.enabled
+				? theme.fg("success", "[x]")
+				: theme.fg("dim", "[ ]");
+			const name = isSelected
+				? theme.fg("accent", theme.bold(entry.displayName))
+				: entry.displayName;
+			const meta: string[] = [KIND_LABELS[entry.kind]];
 			const version = versionSummary(entry);
 			if (version) meta.push(version);
-			const suffix = theme.fg(hasUpdate(entry) ? "warning" : "muted", `  ${meta.join(" · ")}`);
-			lines.push(truncateToWidth(`${cursor}${checkbox} ${name}${suffix}`, width, "…"));
+			const updated = updatedSummary(entry);
+			if (updated) meta.push(updated);
+			const suffix = theme.fg(
+				hasUpdate(entry) ? "warning" : "muted",
+				`  ${meta.join(" · ")}`,
+			);
+			lines.push(
+				truncateToWidth(`${cursor}${checkbox} ${name}${suffix}`, width, "…"),
+			);
 		}
 
 		if (start > 0 || end < this.filtered.length) {
-			lines.push(theme.fg("dim", `  (${this.selected + 1}/${this.filtered.length})`));
+			lines.push(
+				theme.fg("dim", `  (${this.selected + 1}/${this.filtered.length})`),
+			);
 		}
 		return lines;
 	}
@@ -455,7 +532,9 @@ class ExtensionManagerComponent extends Container implements Focusable {
 		if (entry.pinnedRef) details.push(`pinned ${entry.pinnedRef}`);
 		const version = versionSummary(entry);
 		if (version) details.push(version);
-		lines.push(truncateToWidth(theme.fg("muted", `  ${details.join(" · ")}`), width, "…"));
+		lines.push(
+			truncateToWidth(theme.fg("muted", `  ${details.join(" · ")}`), width, "…"),
+		);
 		lines.push("");
 
 		const items = this.actionsFor(entry);
@@ -467,7 +546,10 @@ class ExtensionManagerComponent extends Container implements Focusable {
 				: isSelected
 					? theme.fg("accent", theme.bold(item.label))
 					: item.label;
-			const description = theme.fg("dim", `  ${item.disabled ?? item.description}`);
+			const description = theme.fg(
+				"dim",
+				`  ${item.disabled ?? item.description}`,
+			);
 			lines.push(truncateToWidth(`${cursor}${label}${description}`, width, "…"));
 		}
 		return lines;
@@ -489,23 +571,32 @@ export async function showExtensionManager(
 		return;
 	}
 
-	const changed = await ctx.ui.custom<boolean>((tui, theme, _keybindings, done) => {
-		const component = new ExtensionManagerComponent(pi, ctx, registry, tui, theme, done);
-		const container = new Container();
-		container.addChild(new Spacer(1));
-		container.addChild(component);
-		return {
-			render: (w: number) => container.render(w),
-			invalidate: () => container.invalidate(),
-			handleInput: (data: string) => component.handleInput(data),
-			get focused() {
-				return component.focused;
-			},
-			set focused(value: boolean) {
-				component.focused = value;
-			},
-		} as Component & Focusable;
-	});
+	const changed = await ctx.ui.custom<boolean>(
+		(tui, theme, _keybindings, done) => {
+			const component = new ExtensionManagerComponent(
+				pi,
+				ctx,
+				registry,
+				tui,
+				theme,
+				done,
+			);
+			const container = new Container();
+			container.addChild(new Spacer(1));
+			container.addChild(component);
+			return {
+				render: (w: number) => container.render(w),
+				invalidate: () => container.invalidate(),
+				handleInput: (data: string) => component.handleInput(data),
+				get focused() {
+					return component.focused;
+				},
+				set focused(value: boolean) {
+					component.focused = value;
+				},
+			} as Component & Focusable;
+		},
+	);
 
 	if (changed) {
 		const reload = await ctx.ui.confirm(

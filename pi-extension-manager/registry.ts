@@ -50,6 +50,7 @@ export interface ExtensionEntry {
 	pinnedRef?: string;
 	localVersion?: string;
 	remoteVersion?: string;
+	lastUpdated?: string;
 	versionState: VersionState;
 	versionError?: string;
 }
@@ -176,7 +177,7 @@ function readPackageNameAt(dir: string): string | undefined {
 	}
 }
 
-function packageNameForPath(path: string): string | undefined {
+function nearestPackageDir(path: string): string | undefined {
 	let dir = path;
 	try {
 		if (!statSync(dir).isDirectory()) dir = dirname(dir);
@@ -184,11 +185,30 @@ function packageNameForPath(path: string): string | undefined {
 		dir = dirname(dir);
 	}
 	for (;;) {
-		const name = readPackageNameAt(dir);
-		if (name) return name;
+		if (existsSync(join(dir, "package.json"))) return dir;
 		const parent = dirname(dir);
 		if (parent === dir) return undefined;
 		dir = parent;
+	}
+}
+
+function packageNameForPath(path: string): string | undefined {
+	const dir = nearestPackageDir(path);
+	return dir ? readPackageNameAt(dir) : undefined;
+}
+
+function formatDate(date: Date): string {
+	return date.toISOString().slice(0, 10);
+}
+
+function lastUpdatedForPath(path: string): string | undefined {
+	const packageDir = nearestPackageDir(path);
+	const target = packageDir ? join(packageDir, "package.json") : path;
+	if (!existsSync(target)) return undefined;
+	try {
+		return formatDate(statSync(target).mtime);
+	} catch {
+		return undefined;
 	}
 }
 
@@ -244,6 +264,7 @@ export async function loadRegistry(ctx: ExtensionContext): Promise<Registry> {
 			source,
 			installedPath,
 			pinnedRef,
+			lastUpdated: lastUpdatedForPath(installedPath ?? resource.path),
 			versionState: "idle",
 		};
 		if (isDownloaded(entry)) entry.localVersion = readLocalVersion(entry);
