@@ -28,8 +28,8 @@ as `local → remote`.
 **Action menu**
 
 | Action | Availability | Behaviour |
-|---|---|---|
-| Enable / Disable | all | Writes a `+path` / `-path` pattern into the owning scope's settings, exactly like `pi config`. Disabling is greyed out for the extension manager itself, since that would remove the only way back into this menu. |
+| --- | --- | --- |
+| Enable / Disable | all | Top-level extension paths still use `+path` / `-path` patterns when needed; package extension lists just keep enabled paths and omit disabled ones. Disabling is greyed out for the extension manager itself, since that would remove the only way back into this menu. |
 | Check version | npm/git only | npm: installed `package.json` version vs `npm view`. git: local HEAD vs `git ls-remote` (short SHAs). |
 | Update | npm/git only | Runs pi's own package updater for that source. Disabled for npm sources pinned to an exact version (pi never moves those). |
 | Delete | all | Always asks for confirmation (`y`/`n`). Packages are uninstalled and dropped from settings; `settings.extensions` entries are removed from settings; auto-discovered files/directories are deleted from disk. |

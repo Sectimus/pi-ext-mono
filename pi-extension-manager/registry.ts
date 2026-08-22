@@ -5,7 +5,13 @@
  * enable/disable state, scope (user/project) and provenance (package vs local
  * file) match what `pi config` shows.
  */
-import { existsSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
+import {
+	existsSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+	statSync,
+} from "node:fs";
 import { basename, dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -15,9 +21,17 @@ import {
 	type PathMetadata,
 	SettingsManager,
 } from "@earendil-works/pi-coding-agent";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionAPI,
+	ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
 
-export type ExtensionKind = "npm" | "git" | "local-package" | "settings-path" | "auto";
+export type ExtensionKind =
+	| "npm"
+	| "git"
+	| "local-package"
+	| "settings-path"
+	| "auto";
 export type VersionState = "idle" | "checking" | "checked" | "error";
 
 export interface ExtensionEntry {
@@ -78,14 +92,22 @@ export function isDownloaded(entry: ExtensionEntry): boolean {
 
 /** Exact npm versions are pinned in settings; pi's updater deliberately skips them. */
 export function isPinnedNpm(entry: ExtensionEntry): boolean {
-	return entry.kind === "npm" && !!entry.pinnedRef && /^\d+\.\d+\.\d+/.test(entry.pinnedRef);
+	return (
+		entry.kind === "npm" &&
+		!!entry.pinnedRef &&
+		/^\d+\.\d+\.\d+/.test(entry.pinnedRef)
+	);
 }
 
 /** Network actions are pointless when pi is running offline. */
 export function isOffline(): boolean {
 	const value = process.env.PI_OFFLINE;
 	if (!value) return false;
-	return value === "1" || value.toLowerCase() === "true" || value.toLowerCase() === "yes";
+	return (
+		value === "1" ||
+		value.toLowerCase() === "true" ||
+		value.toLowerCase() === "yes"
+	);
 }
 
 export function hasUpdate(entry: ExtensionEntry): boolean {
@@ -97,7 +119,10 @@ export function hasUpdate(entry: ExtensionEntry): boolean {
 	);
 }
 
-function classify(metadata: PathMetadata): { kind: ExtensionKind; pinnedRef?: string } {
+function classify(metadata: PathMetadata): {
+	kind: ExtensionKind;
+	pinnedRef?: string;
+} {
 	if (metadata.origin === "top-level") {
 		return { kind: metadata.source === "auto" ? "auto" : "settings-path" };
 	}
@@ -107,10 +132,17 @@ function classify(metadata: PathMetadata): { kind: ExtensionKind; pinnedRef?: st
 		const at = spec.lastIndexOf("@");
 		return { kind: "npm", pinnedRef: at > 0 ? spec.slice(at + 1) : undefined };
 	}
-	if (source.startsWith("git:") || /^(https?|ssh|git):\/\//.test(source) || source.startsWith("git@")) {
+	if (
+		source.startsWith("git:") ||
+		/^(https?|ssh|git):\/\//.test(source) ||
+		source.startsWith("git@")
+	) {
 		const at = source.lastIndexOf("@");
 		const slash = source.lastIndexOf("/");
-		return { kind: "git", pinnedRef: at > slash && at > 6 ? source.slice(at + 1) : undefined };
+		return {
+			kind: "git",
+			pinnedRef: at > slash && at > 6 ? source.slice(at + 1) : undefined,
+		};
 	}
 	return { kind: "local-package" };
 }
@@ -121,19 +153,30 @@ function packageLabel(source: string, kind: ExtensionKind): string {
 	if (kind === "git") {
 		const withoutRef = source.replace(/^git:/, "").replace(/^[a-z+]+:\/\//, "");
 		const parts = withoutRef.split("/").filter(Boolean);
-		return parts.slice(-2).join("/").replace(/\.git$/, "") || withoutRef;
+		return (
+			parts
+				.slice(-2)
+				.join("/")
+				.replace(/\.git$/, "") || withoutRef
+		);
 	}
 	return basename(source);
 }
 
-function displayNameFor(path: string, metadata: PathMetadata, kind: ExtensionKind): string {
+function displayNameFor(
+	path: string,
+	metadata: PathMetadata,
+	kind: ExtensionKind,
+): string {
 	const fileName = basename(path);
 	if (metadata.origin === "package") {
 		const inner = metadata.baseDir ? relative(metadata.baseDir, path) : fileName;
 		return `${packageLabel(metadata.source, kind)}:${inner}`;
 	}
 	const parentFolder = basename(dirname(path));
-	return parentFolder && parentFolder !== "extensions" ? `${parentFolder}/${fileName}` : fileName;
+	return parentFolder && parentFolder !== "extensions"
+		? `${parentFolder}/${fileName}`
+		: fileName;
 }
 
 export async function loadRegistry(ctx: ExtensionContext): Promise<Registry> {
@@ -141,15 +184,25 @@ export async function loadRegistry(ctx: ExtensionContext): Promise<Registry> {
 	const settingsManager = SettingsManager.create(ctx.cwd, agentDir, {
 		projectTrusted: ctx.isProjectTrusted(),
 	});
-	const packageManager = new DefaultPackageManager({ cwd: ctx.cwd, agentDir, settingsManager });
+	const packageManager = new DefaultPackageManager({
+		cwd: ctx.cwd,
+		agentDir,
+		settingsManager,
+	});
 	// Never install anything just because the menu was opened.
 	const resolved = await packageManager.resolve(async () => "skip");
 
 	const entries: ExtensionEntry[] = resolved.extensions.map((resource) => {
-		const scope: "user" | "project" = resource.metadata.scope === "project" ? "project" : "user";
+		const scope: "user" | "project" =
+			resource.metadata.scope === "project" ? "project" : "user";
 		const { kind, pinnedRef } = classify(resource.metadata);
-		const source = resource.metadata.origin === "package" ? resource.metadata.source : undefined;
-		const installedPath = source ? packageManager.getInstalledPath(source, scope) : undefined;
+		const source =
+			resource.metadata.origin === "package"
+				? resource.metadata.source
+				: undefined;
+		const installedPath = source
+			? packageManager.getInstalledPath(source, scope)
+			: undefined;
 		const entry: ExtensionEntry = {
 			path: resource.path,
 			displayName: displayNameFor(resource.path, resource.metadata, kind),
@@ -193,7 +246,9 @@ function readNpmVersion(installedPath: string): string | undefined {
 	const packageJsonPath = join(installedPath, "package.json");
 	if (!existsSync(packageJsonPath)) return undefined;
 	try {
-		return JSON.parse(readFileSync(packageJsonPath, "utf-8")).version as string | undefined;
+		return JSON.parse(readFileSync(packageJsonPath, "utf-8")).version as
+			| string
+			| undefined;
 	} catch {
 		return undefined;
 	}
@@ -205,13 +260,22 @@ export function readLocalVersion(entry: ExtensionEntry): string | undefined {
 	if (entry.kind === "npm") return readNpmVersion(entry.installedPath);
 	if (entry.kind !== "git") return undefined;
 	try {
-		const head = readFileSync(join(entry.installedPath, ".git", "HEAD"), "utf-8").trim();
+		const head = readFileSync(
+			join(entry.installedPath, ".git", "HEAD"),
+			"utf-8",
+		).trim();
 		if (!head.startsWith("ref: ")) return head.slice(0, 12);
 		const ref = head.slice(5).trim();
 		const refPath = join(entry.installedPath, ".git", ref);
-		if (existsSync(refPath)) return readFileSync(refPath, "utf-8").trim().slice(0, 12);
-		const packed = readFileSync(join(entry.installedPath, ".git", "packed-refs"), "utf-8");
-		return packed.match(new RegExp(`^([0-9a-f]{40}) ${ref}$`, "m"))?.[1]?.slice(0, 12);
+		if (existsSync(refPath))
+			return readFileSync(refPath, "utf-8").trim().slice(0, 12);
+		const packed = readFileSync(
+			join(entry.installedPath, ".git", "packed-refs"),
+			"utf-8",
+		);
+		return packed
+			.match(new RegExp(`^([0-9a-f]{40}) ${ref}$`, "m"))?.[1]
+			?.slice(0, 12);
 	} catch {
 		return undefined;
 	}
@@ -228,18 +292,28 @@ function npmPackageName(source: string): string {
 // ---------------------------------------------------------------------------
 
 function stripPattern(pattern: string): string {
-	return pattern.startsWith("!") || pattern.startsWith("+") || pattern.startsWith("-")
+	return pattern.startsWith("!") ||
+		pattern.startsWith("+") ||
+		pattern.startsWith("-")
 		? pattern.slice(1)
 		: pattern;
 }
 
-function topLevelBaseDir(registry: Registry, scope: "user" | "project"): string {
-	return scope === "project" ? join(registry.cwd, CONFIG_DIR_NAME) : registry.agentDir;
+function topLevelBaseDir(
+	registry: Registry,
+	scope: "user" | "project",
+): string {
+	return scope === "project"
+		? join(registry.cwd, CONFIG_DIR_NAME)
+		: registry.agentDir;
 }
 
 /**
- * Persist a new enabled state for a single extension file, mirroring how
- * `pi config` writes `+path` / `-path` patterns into the owning scope.
+ * Persist a new enabled state for a single extension file.
+ *
+ * Top-level extension paths still need `-path` entries to opt out of
+ * auto-discovered files. Package extension lists are simpler: keep only the
+ * enabled paths and omit the rest.
  */
 export async function setEnabled(
 	registry: Registry,
@@ -252,11 +326,15 @@ export async function setEnabled(
 			entry.scope === "project"
 				? settingsManager.getProjectSettings()
 				: settingsManager.getGlobalSettings();
-		const baseDir = entry.metadata.baseDir ?? topLevelBaseDir(registry, entry.scope);
+		const baseDir =
+			entry.metadata.baseDir ?? topLevelBaseDir(registry, entry.scope);
 		const pattern = relative(baseDir, entry.path);
-		const updated = (settings.extensions ?? []).filter((p) => stripPattern(p) !== pattern);
+		const updated = (settings.extensions ?? []).filter(
+			(p) => stripPattern(p) !== pattern,
+		);
 		updated.push(`${enabled ? "+" : "-"}${pattern}`);
-		if (entry.scope === "project") settingsManager.setProjectExtensionPaths(updated);
+		if (entry.scope === "project")
+			settingsManager.setProjectExtensionPaths(updated);
 		else settingsManager.setExtensionPaths(updated);
 	} else {
 		const settings =
@@ -265,9 +343,11 @@ export async function setEnabled(
 				: settingsManager.getGlobalSettings();
 		const packages = [...(settings.packages ?? [])];
 		const index = packages.findIndex(
-			(pkg) => (typeof pkg === "string" ? pkg : pkg.source) === entry.metadata.source,
+			(pkg) =>
+				(typeof pkg === "string" ? pkg : pkg.source) === entry.metadata.source,
 		);
-		if (index === -1) throw new Error(`Package not found in settings: ${entry.metadata.source}`);
+		if (index === -1)
+			throw new Error(`Package not found in settings: ${entry.metadata.source}`);
 		let pkg = packages[index]!;
 		if (typeof pkg === "string") {
 			pkg = { source: pkg };
@@ -275,8 +355,10 @@ export async function setEnabled(
 		}
 		const baseDir = entry.metadata.baseDir ?? dirname(entry.path);
 		const pattern = relative(baseDir, entry.path);
-		const updated = (pkg.extensions ?? []).filter((p) => stripPattern(p) !== pattern);
-		updated.push(`${enabled ? "+" : "-"}${pattern}`);
+		const updated = (pkg.extensions ?? []).filter(
+			(p) => stripPattern(p) !== pattern,
+		);
+		if (enabled) updated.push(pattern);
 		pkg.extensions = updated;
 		if (entry.scope === "project") settingsManager.setProjectPackages(packages);
 		else settingsManager.setPackages(packages);
@@ -308,16 +390,31 @@ export async function checkVersion(
 		const local = readNpmVersion(entry.installedPath);
 		const npmCommand = registry.settingsManager.getNpmCommand() ?? ["npm"];
 		const [command, ...prefixArgs] = npmCommand as [string, ...string[]];
-		const spec = entry.pinnedRef ? entry.source!.slice(4) : npmPackageName(entry.source!);
-		const result = await pi.exec(command, [...prefixArgs, "view", spec, "version", "--json"], {
-			cwd: registry.cwd,
-			signal,
-			timeout: 30_000,
-		});
-		if (result.code !== 0) throw new Error(result.stderr.trim() || "npm view failed");
-		const parsed = JSON.parse(result.stdout.trim() || '""');
+		const spec = entry.pinnedRef
+			? entry.source!.slice(4)
+			: npmPackageName(entry.source!);
+		const result = await pi.exec(
+			command,
+			[...prefixArgs, "view", spec, "version", "--json"],
+			{
+				cwd: registry.cwd,
+				signal,
+				timeout: 30_000,
+			},
+		);
+		if (result.code !== 0)
+			throw new Error(result.stderr.trim() || "npm view failed");
+		let parsed: unknown = "";
+		try {
+			parsed = JSON.parse(result.stdout.trim() || '""');
+		} catch {
+			throw new Error("npm view returned invalid JSON");
+		}
 		const remote = Array.isArray(parsed) ? parsed[parsed.length - 1] : parsed;
-		return { local, remote: typeof remote === "string" && remote ? remote : undefined };
+		return {
+			local,
+			remote: typeof remote === "string" && remote ? remote : undefined,
+		};
 	}
 
 	const localHead = await pi.exec("git", ["rev-parse", "HEAD"], {
@@ -331,10 +428,12 @@ export async function checkVersion(
 		signal,
 		timeout: 30_000,
 	});
-	if (remoteHead.code !== 0) throw new Error(remoteHead.stderr.trim() || "git ls-remote failed");
+	if (remoteHead.code !== 0)
+		throw new Error(remoteHead.stderr.trim() || "git ls-remote failed");
 	const remoteSha = remoteHead.stdout.match(/^([0-9a-f]{40})\s+/m)?.[1];
 	return {
-		local: localHead.code === 0 ? localHead.stdout.trim().slice(0, 12) : undefined,
+		local:
+			localHead.code === 0 ? localHead.stdout.trim().slice(0, 12) : undefined,
 		remote: remoteSha?.slice(0, 12),
 	};
 }
@@ -343,7 +442,10 @@ export async function checkVersion(
 // Update / delete
 // ---------------------------------------------------------------------------
 
-export async function updatePackage(registry: Registry, entry: ExtensionEntry): Promise<void> {
+export async function updatePackage(
+	registry: Registry,
+	entry: ExtensionEntry,
+): Promise<void> {
 	if (!entry.source) throw new Error("Not a package extension");
 	await registry.packageManager.update(entry.source);
 }
@@ -356,7 +458,10 @@ export type DeleteTarget =
 /** What "delete" means for this entry — packages are uninstalled, loose files removed. */
 export function deleteTarget(entry: ExtensionEntry): DeleteTarget {
 	if (entry.metadata.origin === "package") {
-		return { type: "package", label: `uninstall package ${entry.metadata.source}` };
+		return {
+			type: "package",
+			label: `uninstall package ${entry.metadata.source}`,
+		};
 	}
 	if (entry.kind === "settings-path") {
 		return { type: "settings-path", label: `remove ${entry.path} from settings` };
@@ -364,7 +469,10 @@ export function deleteTarget(entry: ExtensionEntry): DeleteTarget {
 	return { type: "file", label: `permanently delete ${entry.path} from disk` };
 }
 
-export async function deleteEntry(registry: Registry, entry: ExtensionEntry): Promise<string> {
+export async function deleteEntry(
+	registry: Registry,
+	entry: ExtensionEntry,
+): Promise<string> {
 	const target = deleteTarget(entry);
 	if (target.type === "package") {
 		await registry.packageManager.removeAndPersist(entry.metadata.source, {
@@ -379,7 +487,8 @@ export async function deleteEntry(registry: Registry, entry: ExtensionEntry): Pr
 	// Auto-discovered file or directory in an extensions/ folder.
 	const isDir = existsSync(entry.path) && statSync(entry.path).isDirectory();
 	const parent = dirname(entry.path);
-	const removeTarget = !isDir && basename(parent) !== "extensions" ? parent : entry.path;
+	const removeTarget =
+		!isDir && basename(parent) !== "extensions" ? parent : entry.path;
 	rmSync(removeTarget, { recursive: true, force: true });
 	// Drop any leftover +/- pattern so settings don't reference a missing file.
 	await removeSettingsPatterns(registry, entry);
@@ -387,18 +496,23 @@ export async function deleteEntry(registry: Registry, entry: ExtensionEntry): Pr
 }
 
 /** Remove every `extensions` pattern in the entry's scope that points at it. */
-async function removeSettingsPatterns(registry: Registry, entry: ExtensionEntry): Promise<void> {
+async function removeSettingsPatterns(
+	registry: Registry,
+	entry: ExtensionEntry,
+): Promise<void> {
 	const { settingsManager } = registry;
 	const settings =
 		entry.scope === "project"
 			? settingsManager.getProjectSettings()
 			: settingsManager.getGlobalSettings();
 	const current = settings.extensions ?? [];
-	const baseDir = entry.metadata.baseDir ?? topLevelBaseDir(registry, entry.scope);
+	const baseDir =
+		entry.metadata.baseDir ?? topLevelBaseDir(registry, entry.scope);
 	const candidates = new Set([entry.path, relative(baseDir, entry.path)]);
 	const updated = current.filter((p) => !candidates.has(stripPattern(p)));
 	if (updated.length === current.length) return;
-	if (entry.scope === "project") settingsManager.setProjectExtensionPaths(updated);
+	if (entry.scope === "project")
+		settingsManager.setProjectExtensionPaths(updated);
 	else settingsManager.setExtensionPaths(updated);
 	await settingsManager.flush();
 }
