@@ -1,0 +1,16 @@
+{
+  "name": "pi-extension-manager",
+  "version": "0.1.0",
+  "description": "Browse, search, enable/disable, update and delete pi extensions from a /extensions menu",
+  "keywords": ["pi-package", "pi-extension", "extension-manager"],
+  "license": "MIT",
+  "author": "Amelia Magee <amelia.magee@arbor-education.com>",
+  "type": "module",
+  "pi": {
+    "extensions": ["./src/index.ts"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  }
+}
