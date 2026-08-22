@@ -1,2 +1,2 @@
-# pi-packages-mono
+# pi-package-mono
 Monorepo containing pi packages and config
