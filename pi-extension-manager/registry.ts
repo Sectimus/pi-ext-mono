@@ -163,11 +163,42 @@ function packageLabel(source: string, kind: ExtensionKind): string {
 	return basename(source);
 }
 
+function readPackageNameAt(dir: string): string | undefined {
+	const packageJsonPath = join(dir, "package.json");
+	if (!existsSync(packageJsonPath)) return undefined;
+	try {
+		const pkg = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as {
+			name?: unknown;
+		};
+		return typeof pkg.name === "string" && pkg.name.trim() ? pkg.name : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+function packageNameForPath(path: string): string | undefined {
+	let dir = path;
+	try {
+		if (!statSync(dir).isDirectory()) dir = dirname(dir);
+	} catch {
+		dir = dirname(dir);
+	}
+	for (;;) {
+		const name = readPackageNameAt(dir);
+		if (name) return name;
+		const parent = dirname(dir);
+		if (parent === dir) return undefined;
+		dir = parent;
+	}
+}
+
 function displayNameFor(
 	path: string,
 	metadata: PathMetadata,
 	kind: ExtensionKind,
 ): string {
+	const packageName = packageNameForPath(path);
+	if (packageName) return packageName;
 	const fileName = basename(path);
 	if (metadata.origin === "package") {
 		const inner = metadata.baseDir ? relative(metadata.baseDir, path) : fileName;
