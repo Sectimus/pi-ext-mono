@@ -74,7 +74,7 @@ function versionSummary(entry: ExtensionEntry): string {
 }
 
 function updatedSummary(entry: ExtensionEntry): string {
-	return entry.lastUpdated ? `updated ${entry.lastUpdated}` : "";
+	return entry.lastUpdated ?? "";
 }
 
 class ExtensionManagerComponent extends Container implements Focusable {
@@ -502,13 +502,26 @@ class ExtensionManagerComponent extends Container implements Focusable {
 			if (version) meta.push(version);
 			const updated = updatedSummary(entry);
 			if (updated) meta.push(updated);
-			const suffix = theme.fg(
-				hasUpdate(entry) ? "warning" : "muted",
-				`  ${meta.join(" · ")}`,
+			const left = `${cursor}${checkbox} `;
+			const rightText = meta.join(" · ");
+			if (!rightText) {
+				lines.push(truncateToWidth(`${left}${name}`, width, "…"));
+				continue;
+			}
+			const right = theme.fg(hasUpdate(entry) ? "warning" : "muted", rightText);
+			const availableName = Math.max(
+				1,
+				width - visibleWidth(left) - visibleWidth(right) - 2,
 			);
-			lines.push(
-				truncateToWidth(`${cursor}${checkbox} ${name}${suffix}`, width, "…"),
+			const trimmedName = truncateToWidth(name, availableName, "…");
+			const gap = Math.max(
+				2,
+				width -
+					visibleWidth(left) -
+					visibleWidth(trimmedName) -
+					visibleWidth(right),
 			);
+			lines.push(`${left}${trimmedName}${" ".repeat(gap)}${right}`);
 		}
 
 		if (start > 0 || end < this.filtered.length) {
